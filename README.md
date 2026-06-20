@@ -4,6 +4,61 @@ A multi-agent AI resume generator built with **CrewAI**, **Ollama**, **FastAPI**
 
 ---
 
+## What This Application Does
+
+This application takes a candidate's profile and a target job description, then uses four AI agents to generate a tailored, ATS-optimized resume. The user interacts through a Streamlit web UI that talks to a FastAPI backend, which orchestrates the AI agents running on a local Ollama LLM.
+
+**Input:** Candidate name, skills, experience, education, certifications, projects, and a target job description (typed manually or uploaded as PDF/DOCX/TXT/Markdown).
+
+**Output:** A structured resume with professional summary, skills section, experience bullets, project descriptions, ATS keyword analysis with a match score, and a quality review — all downloadable as TXT or JSON.
+
+---
+
+## How to Use the Application
+
+### Step 1: Login
+
+Open http://localhost:8501 after starting the containers. You will see a **login page** that requires authentication before accessing any features.
+
+- Enter the **FastAPI Base URL** (pre-filled as `http://api:8000` inside Docker)
+- Enter the **Bearer Token / API Key**: use `dev-secret-key` for local development
+- Click **Login**
+
+### Step 2: Enter Resume Details
+
+After login, the main page has two sections. The first section collects your candidate profile:
+
+- **Upload resume** — upload a PDF, DOCX, TXT, or Markdown file, or switch to **Enter fields** to type manually
+- **Profile fields** — name, email, phone, location, skills (comma-separated), and a summary
+- **Experience** — company, title, years, and responsibilities (one per line)
+- **Education and certifications** — one per line
+- **Projects** — format: `Project Name | Tech1, Tech2 | Description` (one per line)
+
+### Step 3: Enter Target Job
+
+The second section collects the job you are targeting:
+
+- **Upload job description** — upload a file, or switch to **Paste job description**
+- **Target company and role** — the company name and job title
+- **Job description** — paste or edit the full job description text
+
+### Step 4: Generate Resume
+
+Click the **Generate Resume** button. The four CrewAI agents run sequentially (this may take 30–90 seconds depending on your machine and model). When complete, you will see:
+
+- **Resume tab** — professional summary, skills, experience bullets, and project descriptions
+- **ATS tab** — ATS score, matched keywords, and missing keywords
+- **Review tab** — professionalism score and reviewer recommendations
+- **Raw JSON tab** — the full structured API response
+
+You can download the result as **TXT** or **JSON** using the download buttons.
+
+### Sidebar
+
+The sidebar shows the current system info (CrewAI, Ollama, FastAPI, Streamlit), a **Logout** button, and a **Check API Readiness** button to verify the backend and Ollama are connected.
+
+---
+
 ## Architecture
 
 ```text
