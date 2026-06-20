@@ -1,0 +1,157 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: enterprise-ai-resume
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enterprise-ai-resume-config
+  namespace: enterprise-ai-resume
+data:
+  APP_NAME: "Enterprise AI Resume Generator Agent"
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  USE_OLLAMA: "true"
+  OLLAMA_BASE_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "llama3.2"
+  OLLAMA_TIMEOUT_SECONDS: "90"
+  FASTAPI_BASE_URL: "http://enterprise-ai-resume-api:8000"
+  CORS_ORIGINS: "https://resume.example.com"
+  RATE_LIMIT_REQUESTS: "120"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: enterprise-ai-resume-secrets
+  namespace: enterprise-ai-resume
+type: Opaque
+stringData:
+  API_KEY: "replace-me"
+  BEARER_TOKEN: "replace-me"
+  JWT_SECRET: "replace-me-with-32-byte-minimum-secret"
+  JWT_ALGORITHM: "HS256"
+  JWT_ISSUER: "enterprise-ai-resume-generator"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enterprise-ai-resume-api
+  namespace: enterprise-ai-resume
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: enterprise-ai-resume-api
+  template:
+    metadata:
+      labels:
+        app: enterprise-ai-resume-api
+    spec:
+      containers:
+        - name: api
+          image: enterprise-ai-resume-generator:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: enterprise-ai-resume-config
+            - secretRef:
+                name: enterprise-ai-resume-secrets
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: enterprise-ai-resume-api
+  namespace: enterprise-ai-resume
+spec:
+  selector:
+    app: enterprise-ai-resume-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enterprise-ai-resume-ui
+  namespace: enterprise-ai-resume
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: enterprise-ai-resume-ui
+  template:
+    metadata:
+      labels:
+        app: enterprise-ai-resume-ui
+    spec:
+      containers:
+        - name: streamlit
+          image: enterprise-ai-resume-generator:latest
+          imagePullPolicy: IfNotPresent
+          command: ["streamlit", "run", "frontend/streamlit_app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
+          ports:
+            - containerPort: 8501
+          envFrom:
+            - configMapRef:
+                name: enterprise-ai-resume-config
+            - secretRef:
+                name: enterprise-ai-resume-secrets
+          env:
+            - name: FASTAPI_BASE_URL
+              value: "http://enterprise-ai-resume-api:8000"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: enterprise-ai-resume-ui
+  namespace: enterprise-ai-resume
+spec:
+  selector:
+    app: enterprise-ai-resume-ui
+  ports:
+    - name: http
+      port: 8501
+      targetPort: 8501
