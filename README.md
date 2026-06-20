@@ -2,6 +2,8 @@
 
 A multi-agent AI resume generator built with **CrewAI**, **Ollama**, **FastAPI**, and **Streamlit**. The entire application runs as three Docker containers with a single command.
 
+---
+
 ## Architecture
 
 ```text
@@ -14,10 +16,16 @@ Ollama LLM (port 11434)
 
 Four CrewAI agents run sequentially inside the FastAPI service:
 
-1. **Profile Analyzer** — extracts skills, experience, level, and domain
-2. **ATS Optimizer** — identifies missing keywords and estimates ATS score
-3. **Resume Writer** — generates professional resume content
-4. **Reviewer** — validates grammar, consistency, and professionalism
+```text
+Profile Analyzer Agent  →  ATS Optimization Agent  →  Resume Writer Agent  →  Reviewer Agent
+```
+
+| Agent | Responsibility |
+|---|---|
+| Profile Analyzer | Extracts skills, experience, level, and domain from candidate profile |
+| ATS Optimizer | Identifies missing keywords, estimates ATS score, suggests improvements |
+| Resume Writer | Generates professional summary, skills, experience bullets, project descriptions |
+| Reviewer | Validates grammar, consistency, formatting, and professionalism |
 
 ## Technology Stack
 
@@ -78,6 +86,26 @@ To also delete downloaded models:
 ```bash
 docker compose down -v
 ```
+
+---
+
+## Assignment Requirement Mapping
+
+| Requirement | Implementation |
+|---|---|
+| User/API Request | Streamlit UI and `POST /api/v1/resume/generate` |
+| FastAPI Endpoint | `app/api/routes.py` |
+| Authentication Layer | `app/core/security.py` |
+| Orchestrator | `app/services/orchestrator.py` |
+| Agentic Framework | `app/crew/resume_crew.py` (CrewAI) |
+| Profile Analyzer Agent | CrewAI Agent in `app/crew/resume_crew.py` |
+| ATS Optimization Agent | CrewAI Agent in `app/crew/resume_crew.py` |
+| Resume Writer Agent | CrewAI Agent in `app/crew/resume_crew.py` |
+| Reviewer Agent | CrewAI Agent in `app/crew/resume_crew.py` |
+| Structured JSON Response | `app/models/resume_models.py` |
+| Logs + Monitoring | `app/core/logging_config.py`, `/metrics`, `/metrics/json` |
+| Frontend | `frontend/streamlit_app.py` |
+| Local LLM | `app/services/ollama_client.py` (Ollama) |
 
 ---
 
@@ -199,6 +227,37 @@ The Streamlit UI includes a login gate. For production, replace the static token
 
 ---
 
+## Enterprise Readiness
+
+### Implemented locally
+
+- Signed JWT bearer token validation, static dev token, and X-API-Key support
+- Request ID middleware with `X-Request-ID` propagation
+- Audit-style request completion logs
+- Security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+- CORS allowlist
+- In-memory rate limiting
+- `/health`, `/ready`, `/metrics`, `/metrics/json` operational endpoints
+- PDF, DOCX, TXT, and Markdown text extraction
+- Resume export as downloadable plain text
+- Docker Compose healthchecks and non-root container user
+- Kubernetes deployment scaffold in `deploy/kubernetes/`
+- GitHub Actions CI workflow in `.github/workflows/tests.yml`
+
+### Required for production deployment
+
+These require organization-specific infrastructure and cannot be completed locally:
+
+- OIDC provider (Google Workspace, Microsoft Entra ID, Okta)
+- TLS certificate and production domain
+- Secret manager (AWS Secrets Manager, Azure Key Vault, HashiCorp Vault)
+- Container registry and deployment target
+- Production Ollama host or managed model gateway
+- Centralized logging/metrics backend (OpenTelemetry, Prometheus, Grafana, Datadog)
+- Redis or API gateway rate limiting for multi-replica deployments
+
+---
+
 ## Advanced: Local Development Without Docker
 
 If you prefer running without containers:
@@ -227,7 +286,7 @@ streamlit run frontend/streamlit_app.py
 | Problem | Solution |
 |---|---|
 | Containers won't start | Make sure Docker Desktop is running |
-| Ollama model download hangs | Check internet connection; restart with `docker compose down && docker compose up --build` |
+| Ollama model download hangs | Check internet; restart with `docker compose down && docker compose up --build` |
 | `Unauthorized` API response | Include `X-API-Key: dev-secret-key` header |
 | CrewAI is slow | Use a smaller model: set `OLLAMA_MODEL=phi3` in `.env` |
 | Port conflict on 11434 | The container maps to host port `11435` to avoid conflicts with a local Ollama install |
