@@ -344,6 +344,30 @@ if st.button("Generate Resume", type="primary", use_container_width=True):
         )
         export_text = export_response.text if export_response.ok else ""
         st.success("Resume generated successfully")
+
+        confidence = result.get("submission_confidence") or {}
+        conf_level = confidence.get("level", "N/A")
+        conf_pct = confidence.get("percentage", 0)
+        conf_submit = confidence.get("should_submit", "N/A")
+        conf_color = "green" if conf_level == "HIGH" else "orange" if conf_level == "MEDIUM" else "red"
+        st.markdown(
+            f'<div style="border:2px solid {conf_color}; border-radius:8px; padding:12px 16px; margin-bottom:16px;">'
+            f'<span style="font-size:1.3rem; font-weight:700; color:{conf_color};">'
+            f'Submission Confidence: {conf_level} ({conf_pct}%) — {conf_submit}</span><br/>'
+            f'<span style="color:#4b5563;">{confidence.get("rationale", "")}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+        domain_fit = result.get("domain_fit") or {}
+        if domain_fit.get("fit_level") == "Weak":
+            st.warning(f"**Domain Fit Warning:** {domain_fit.get('recommendation', '')}")
+        elif domain_fit.get("fit_level") == "Moderate":
+            st.info(f"**Domain Fit:** {domain_fit.get('recommendation', '')}")
+
+        profile_analysis = result.get("profile_analysis") or {}
+        if profile_analysis.get("seniority_match") != "Aligned" and profile_analysis.get("seniority_risk_note"):
+            st.warning(f"**Seniority Alert:** {profile_analysis['seniority_risk_note']}")
+
         st.write("**Agentic Framework:**", result.get("agentic_framework"))
         st.write("**LLM Provider:**", result.get("llm_provider"))
         st.write("**Crew Path:**", " → ".join(result.get("crew_execution_path", [])))
@@ -366,7 +390,7 @@ if st.button("Generate Resume", type="primary", use_container_width=True):
                 use_container_width=True,
             )
 
-        tab1, tab2, tab3, tab4 = st.tabs(["Resume", "ATS", "Review", "Raw JSON"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Resume", "ATS Analysis", "Gap Analysis", "Review", "Confidence", "Raw JSON"])
         with tab1:
             st.markdown("### Professional Summary")
             st.write(result["resume_content"]["professional_summary"])
@@ -379,16 +403,87 @@ if st.button("Generate Resume", type="primary", use_container_width=True):
             for project in result["resume_content"]["project_descriptions"]:
                 st.write(f"- {project}")
         with tab2:
-            st.metric("ATS Score", result["ats_analysis"]["ats_score"])
-            st.write("Matched:", ", ".join(result["ats_analysis"]["matched_keywords"]))
-            st.write("Missing:", ", ".join(result["ats_analysis"]["missing_keywords"]))
-            st.write(result["ats_analysis"].get("crewai_output") or "No CrewAI ATS output.")
+            ats = result.get("ats_analysis", {})
+            breakdown = ats.get("score_breakdown") or {}
+            st.metric("ATS Score", f"{ats.get('ats_score', 0)} / 100")
+            st.markdown("#### Score Breakdown")
+            bd_cols = st.columns(5)
+            bd_cols[0].metric("Required Keywords", f"{breakdown.get('required_keyword_score', 0)}/30")
+            bd_cols[1].metric("Preferred Keywords", f"{breakdown.get('preferred_keyword_score', 0)}/20")
+            bd_cols[2].metric("Quantified Outcomes", f"{breakdown.get('quantified_outcomes_score', 0)}/20")
+            bd_cols[3].metric("Title Alignment", f"{breakdown.get('title_alignment_score', 0)}/15")
+            bd_cols[4].metric("Education/Creds", f"{breakdown.get('education_credentials_score', 0)}/15")
+            st.markdown("#### Required Keywords")
+            req_matched = ats.get("matched_required", [])
+            req_missing = ats.get("missing_required", [])
+            if req_matched:
+                st.write("**Matched:** " + ", ".join(req_matched))
+            if req_missing:
+                st.write("**Missing:** " + ", ".join(req_missing))
+            st.markdown("#### Preferred Keywords")
+            pref_matched = ats.get("matched_preferred", [])
+            pref_missing = ats.get("missing_preferred", [])
+            if pref_matched:
+                st.write("**Matched:** " + ", ".join(pref_matched))
+            if pref_missing:
+                st.write("**Missing:** " + ", ".join(pref_missing))
+            st.markdown("#### Formatting Suggestions")
+            for sug in ats.get("formatting_suggestions", []):
+                st.write(f"- {sug}")
+            crewai_ats = ats.get("crewai_output")
+            if crewai_ats:
+                st.markdown("#### CrewAI ATS Agent Output")
+                st.write(crewai_ats)
         with tab3:
-            st.metric("Professionalism Score", result["review"]["professionalism_score"])
-            for rec in result["review"]["recommendations"]:
-                st.write(f"- {rec}")
-            st.write(result["review"].get("crewai_output") or "No CrewAI review output.")
+            gap_items = result.get("gap_analysis", [])
+            if gap_items:
+                st.markdown("**Category key:** A = Have it, undocumented · B = Adjacent, short course · C = True gap · D = Scale gap · E = Experience gap")
+                for g in gap_items:
+                    icon = {"A": "🟢", "B": "🟡", "C": "🔴", "D": "🟠", "E": "🔵"}.get(g.get("category", "C"), "⚪")
+                    weight_badge = "🔒 Required" if g.get("jd_weight") == "Required" else "💡 Preferred"
+                    st.markdown(f"{icon} **{g.get('skill_or_requirement', '')}** — Category {g.get('category', '?')}: {g.get('category_label', '')} ({weight_badge})")
+                    st.write(f"  {g.get('recommendation', '')}")
+                    if g.get("screening_prep"):
+                        st.caption(f"  Screening prep: {g['screening_prep']}")
+            else:
+                st.success("No significant gaps identified.")
         with tab4:
+            review = result.get("review", {})
+            st.metric("Professionalism Score", review.get("professionalism_score", 0))
+            quant_found = review.get("quantified_outcomes_found", [])
+            if review.get("has_quantified_outcomes"):
+                st.success(f"Quantified outcomes found: {', '.join(quant_found[:8])}")
+            else:
+                st.warning("No quantified outcomes detected in resume. Consider adding measurable results.")
+            for rec in review.get("recommendations", []):
+                st.write(f"- {rec}")
+            crewai_review = review.get("crewai_output")
+            if crewai_review:
+                st.markdown("#### CrewAI Reviewer Output")
+                st.write(crewai_review)
+        with tab5:
+            if confidence:
+                st.markdown(f"### Should Submit: **{conf_submit}**")
+                st.markdown(f"**Confidence:** {conf_level} ({conf_pct}%)")
+                conf_detail_cols = st.columns(2)
+                with conf_detail_cols[0]:
+                    st.write(f"**Core Match:** {confidence.get('core_match', 'N/A')}")
+                    st.write(f"**Domain Fit:** {confidence.get('domain_fit', 'N/A')}")
+                    st.write(f"**Seniority Fit:** {confidence.get('seniority_fit', 'N/A')}")
+                with conf_detail_cols[1]:
+                    st.write(f"**Differentiators:** {confidence.get('differentiators', 'N/A')}")
+                    st.write(f"**Meaningful Gaps:** {confidence.get('meaningful_gaps', 'None')}")
+                st.markdown("#### Rationale")
+                st.write(confidence.get("rationale", ""))
+                df = domain_fit
+                if df:
+                    st.markdown("#### Domain Analysis")
+                    st.write(f"**Fit Level:** {df.get('fit_level', 'N/A')}")
+                    if df.get("domain_overlap"):
+                        st.write(f"**Overlapping terms:** {', '.join(df['domain_overlap'][:15])}")
+                    if df.get("domain_gaps"):
+                        st.write(f"**Job-specific terms not in profile:** {', '.join(df['domain_gaps'][:15])}")
+        with tab6:
             st.json(result)
     except requests.ConnectionError:
         st.error("FastAPI is not reachable. Start the backend with uvicorn on http://127.0.0.1:8000.")

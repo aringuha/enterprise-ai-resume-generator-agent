@@ -7,6 +7,7 @@ from app.services.ollama_client import ollama_client
 
 logger = logging.getLogger(__name__)
 
+
 class ResumeOrchestrator:
     AGENTIC_FRAMEWORK = "CrewAI sequential multi-agent crew"
 
@@ -27,9 +28,12 @@ class ResumeOrchestrator:
                 llm_provider=ollama_client.provider_name(),
                 crew_execution_path=result["execution_path"],
                 profile_analysis=result["profile_analysis"],
+                domain_fit=result["domain_fit"],
                 ats_analysis=result["ats_analysis"],
                 resume_content=result["resume_content"],
                 review=result["review"],
+                gap_analysis=result["gap_analysis"],
+                submission_confidence=result["submission_confidence"],
                 status="success",
             )
         except Exception:

@@ -46,9 +46,17 @@ The second section collects the job you are targeting:
 
 Click the **Generate Resume** button. The four CrewAI agents run sequentially (this may take 30–90 seconds depending on your machine and model). When complete, you will see:
 
+**At the top of results:**
+- **Submission Confidence banner** — HIGH / MEDIUM / LOW with a percentage and should-submit verdict
+- **Domain Fit warning** — alerts if your background doesn't match the job's domain
+- **Seniority Alert** — warns if your experience level is mismatched (overqualified or underqualified)
+
+**In the tabbed results:**
 - **Resume tab** — professional summary, skills, experience bullets, and project descriptions
-- **ATS tab** — ATS score, matched keywords, and missing keywords
-- **Review tab** — professionalism score and reviewer recommendations
+- **ATS Analysis tab** — weighted ATS score (out of 100) broken down into 5 dimensions: required keyword match (30pts), preferred keyword match (20pts), quantified outcomes (20pts), title alignment (15pts), and education/credentials (15pts). Shows required vs preferred keywords separately.
+- **Gap Analysis tab** — categorized gaps between your profile and the job: A (have it, undocumented), B (adjacent, one course bridges it), C (true gap), D (achievement scale gap), E (experience/domain gap). Required gaps include screening prep — what to say if the recruiter asks.
+- **Review tab** — professionalism score, quantified outcomes check, and specific recommendations
+- **Confidence tab** — detailed submission confidence breakdown: core match, domain fit, seniority fit, differentiators, meaningful gaps, and rationale
 - **Raw JSON tab** — the full structured API response
 
 You can download the result as **TXT** or **JSON** using the download buttons.
